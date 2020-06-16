@@ -41,11 +41,38 @@ ratings_dict = {
     'count': []  # rating: count of cards in the deck
 }
 
+
+def init_counts(run):
+    """Initialized all offered cards to be 0 count."""
+    counts = {}
+    # Initialize picked cards
+    for card in run['Deck']:
+        counts[card] = 0
+
+    # Initialize all picked and swapped cards
+    for pick in run['DraftPicks']:
+        if pick['IsSwap']:
+            card = pick['SwappedIn'][0]
+            counts[card] = 0
+        else:
+            for card in pick['Picks']:
+                counts[card] = 0
+
+    # Initialize offered cards
+    for offer in run['offered']:
+        for i in ['1', '2', '3']:
+            for card in offer[i]:
+                counts[card] = 0
+    return counts
+
+
 runs = loadJson('data/runs.json')
 for run in runs:
-    counts = {}
+    counts = init_counts(run)
+
+    # Count cards used in the final decklist
     for card in run['Deck']:
-        counts[card] = counts[card] + 1 if card in counts else 1
+        counts[card] = counts[card] + 1
 
     for card, count in counts.items():
         ratings_dict['deck'].append(run['id'])
