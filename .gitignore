@@ -1,3 +1,6 @@
+# Keep huge file out of the repo
+data/users.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
