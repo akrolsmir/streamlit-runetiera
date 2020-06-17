@@ -59,10 +59,11 @@ def init_counts(run):
                 counts[card] = 0
 
     # Initialize offered cards
-    for offer in run['offered']:
-        for i in ['1', '2', '3']:
-            for card in offer[i]:
-                counts[card] = 0
+    if 'offered' in run:
+        for offer in run['offered']:
+            for i in ['1', '2', '3']:
+                for card in offer[i]:
+                    counts[card] = 0
     return counts
 
 
