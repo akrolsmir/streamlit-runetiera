@@ -43,17 +43,15 @@ def processRuns():
 # processRuns()
 
 
-def init_counts(run):
+def init_counts(run, deck_fill=0):
     """run is either the output of expeditions-state.json, or array of card IDs"""
-    # If card id array, just initialize to all 0s
+    # Deck fill > 0 theoretically encourages algo to put more weight on the first copy of a card.
+    # If card id array, just initialize to the deck_fill value
     if 'Deck' not in run:
-        return defaultdict(lambda: 0)
+        return defaultdict(lambda: deck_fill)
 
-    # Otherwise, specifically initialize seen but unplayed cards to 0.
+    # Otherwise, specifically initialize seen but unplayed cards to 0, and played cards to deck_fill.
     counts = {}
-    # Initialize picked cards
-    for card in run['Deck']:
-        counts[card] = 0
 
     # Initialize all picked and swapped cards
     for pick in run['DraftPicks']:
@@ -70,6 +68,11 @@ def init_counts(run):
             for i in ['1', '2', '3']:
                 for card in offer[i]:
                     counts[card] = 0
+
+    # Initialize picked cards
+    for card in run['Deck']:
+        counts[card] = deck_fill
+
     return counts
 
 
@@ -84,7 +87,7 @@ def format_surprise_data(runs, new_deck=[], new_id='dummy'):
 
     # NOTE: very hacky, where we merge jsons and a cardlist together to form data set
     for run in (runs + [new_deck]):
-        counts = init_counts(run)
+        counts = init_counts(run, deck_fill=3)
 
         decklist = run['Deck'] if 'Deck' in run else run
         # Count cards used in the final decklist
@@ -97,30 +100,9 @@ def format_surprise_data(runs, new_deck=[], new_id='dummy'):
             ratings_dict['count'].append(count)
 
     df = pd.DataFrame(ratings_dict)
-    reader = Reader(rating_scale=(0, 5))
+    reader = Reader(rating_scale=(0, 10))
     # The columns must correspond to user id, item id and ratings (in that order).
     return Dataset.load_from_df(df[['deck', 'card', 'count']], reader)
-
-
-def predict_with_knn(data):
-    # From https://surprise.readthedocs.io/en/stable/getting_started.html#train-on-a-whole-trainset-and-the-predict-method
-    # Retrieve the trainset.
-    trainset = data.build_full_trainset()
-
-    # Build an algorithm, and train it.
-    algo = KNNBasic()
-    # Alternatively, item-based collaborative filtering:
-    # algo = KNNBasic(sim_options={'user_based': False})
-    algo.fit(trainset)
-
-    # Check how likely this deck would want Back to Back (actually had 3)
-    # Deck: https://runetiera.com/draft-viewer?run=8Y8ZjejfT
-    pred = algo.predict('8Y8ZjejfT', '01DE041', r_ui=3, verbose=True)
-    # They Who Endure
-    pred = algo.predict('8Y8ZjejfT', '01FR034', r_ui=0, verbose=True)
-    # Now for https://runetiera.com/draft-viewer?run=JAbG8Neme
-    pred = algo.predict('JAbG8Neme', '01DE041', r_ui=2, verbose=True)
-    pred = algo.predict('JAbG8Neme', '01FR034', r_ui=1, verbose=True)
 
 
 def benchmark(data):
@@ -172,12 +154,12 @@ def get_top_n(predictions, n=10):
     return top_n
 
 
-@st.cache(suppress_st_warning=True)
+# @st.cache(suppress_st_warning=True)
 def build_algo(data):
     # TODO: Serialize the algorithm so first run doesn't require recalculating
     # the entire model https://surprise.readthedocs.io/en/stable/FAQ.html#how-to-serialize-an-algorithm
     trainset = data.build_full_trainset()
-    # KNN seems to return static values, weird.
+    # KNN seems to return that user/item was unknown...
     algo = SVD()
     algo.fit(trainset)
     return algo
@@ -247,3 +229,5 @@ data = format_surprise_data(runs)
 algo = build_algo(data)
 predictions = predict_best_cards(algo, runs, 'new_id', test_deck)
 predictions
+algo.predict('new_id', '02BW026', r_ui=1, verbose=True)
+algo.predict('new_id', '01PZ052', r_ui=0, verbose=True)
