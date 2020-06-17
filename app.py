@@ -2,6 +2,10 @@ import streamlit as st
 import urllib.request
 import json
 
+from recommend import runs
+from recommend import format_surprise_data
+from recommend import predict_best_cards
+
 RUN_URL = 'https://firestore.googleapis.com/v1/projects/runetiera/databases/(default)/documents/runs/'
 
 
@@ -30,11 +34,20 @@ deck_url = st.text_input(
 cards = []
 deck_id = deck_url.split('run=')[1]
 with urllib.request.urlopen(RUN_URL + deck_id) as url:
-    data = json.loads(url.read().decode())
-    cards = extract_cards(data)
+    response = json.loads(url.read().decode())
+    cards = extract_cards(response)
+st.image(card_url(cards[0] + '-full'), use_column_width=True)
+
+# Print best cards as predicted by recommender
+data = format_surprise_data(runs, cards, 'new_id')
+predictions = predict_best_cards(data, 'new_id')
+st.write("## Best cards to add")
+for (card, score) in predictions[0:5]:
+    st.write(f'#### Score: {score:.1f}')
+    st.image(card_url(card), width=200)
 
 # Output card images
-st.write("## Cards in your deck")
+st.write("## Your Decklist")
 for group in chunker(cards, 3):
     images = [card_url(card) for card in group]
     st.image(images, width=200)
