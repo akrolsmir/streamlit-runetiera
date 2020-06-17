@@ -4,8 +4,11 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-from surprise import KNNBasic
 from surprise import NormalPredictor
+from surprise import KNNBaseline
+from surprise import KNNBasic
+from surprise import KNNWithMeans
+from surprise import KNNWithZScore
 from surprise import Dataset
 from surprise import Reader
 from surprise.model_selection import cross_validate
@@ -36,15 +39,6 @@ def processRuns():
 # processRuns()
 
 
-# Format data for surprise's collaborative filtering algorithms
-# https://surprise.readthedocs.io/en/stable/getting_started.html#load-dom-dataframe-py
-ratings_dict = {
-    'deck': [],  # user: RuneTiera Deck ID
-    'card': [],  # item: LoR Card ID
-    'count': []  # rating: count of cards in the deck
-}
-
-
 def init_counts(run):
     """Initialized all offered cards to be 0 count."""
     counts = {}
@@ -70,7 +64,38 @@ def init_counts(run):
     return counts
 
 
+def format_surprise_deck(cards, id):
+    ratings_dict = {
+        'deck': [],  # user: RuneTiera Deck ID
+        'card': [],  # item: LoR Card ID
+        'count': []  # rating: count of cards in the deck
+    }
+
+    # Count cards used in the final decklist
+    counts = {}
+    for card in cards:
+        counts[card] = counts[card] + 1 if card in counts else 1
+
+    for card, count in counts.items():
+        ratings_dict['deck'].append(id)
+        ratings_dict['card'].append(card)
+        ratings_dict['count'].append(count)
+
+    df = pd.DataFrame(ratings_dict)
+    reader = Reader(rating_scale=(0, 5))
+    # The columns must correspond to user id, item id and ratings (in that order).
+    return Dataset.load_from_df(df[['deck', 'card', 'count']], reader)
+
+
 def format_surprise_data(runs):
+    # Format data for surprise's collaborative filtering algorithms
+    # https://surprise.readthedocs.io/en/stable/getting_started.html#load-dom-dataframe-py
+    ratings_dict = {
+        'deck': [],  # user: RuneTiera Deck ID
+        'card': [],  # item: LoR Card ID
+        'count': []  # rating: count of cards in the deck
+    }
+
     for run in runs:
         counts = init_counts(run)
 
@@ -84,10 +109,7 @@ def format_surprise_data(runs):
             ratings_dict['count'].append(count)
 
     df = pd.DataFrame(ratings_dict)
-    df
-
     reader = Reader(rating_scale=(0, 5))
-
     # The columns must correspond to user id, item id and ratings (in that order).
     return Dataset.load_from_df(df[['deck', 'card', 'count']], reader)
 
@@ -118,3 +140,21 @@ def predict_with_knn(data):
 
 
 predict_with_knn(data)
+
+
+benchmark = []
+# Iterate over all algorithms
+for algorithm in [KNNBaseline(), KNNBasic(), KNNWithMeans(), KNNWithZScore()]:
+    # Perform cross validation
+    results = cross_validate(algorithm, data, measures=[
+                             'RMSE'], cv=3, verbose=False)
+
+    # Get results & append algorithm name
+    tmp = pd.DataFrame.from_dict(results).mean(axis=0)
+    tmp = tmp.append(pd.Series([str(algorithm).split(
+        ' ')[0].split('.')[-1]], index=['Algorithm']))
+    benchmark.append(tmp)
+
+final_df = pd.DataFrame(benchmark).set_index(
+    'Algorithm').sort_values('test_rmse')
+final_df
