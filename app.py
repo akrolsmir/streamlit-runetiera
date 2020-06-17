@@ -32,7 +32,7 @@ st.write("Discover the best cards to add to your deck, powered by MACHINE LEARNI
 # Twisted Fate banner image
 st.image(card_url('02BW026-full'), use_column_width=True)
 deck_url = st.text_input(
-    'Paste a RuneTiera decklist e.g. `https://runetiera.com/draft-viewer?run=JAbG8Neme`', 'https://runetiera.com/draft-viewer?run=JAbG8Neme')
+    'Paste a RuneTiera decklist e.g. `https://runetiera.com/draft-viewer?run=JkCBC1CcU`', 'https://runetiera.com/draft-viewer?run=JAbG8Neme')
 
 # Extract the cards from the Firebase API
 cards = []
