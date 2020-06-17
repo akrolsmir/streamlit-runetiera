@@ -26,9 +26,12 @@ def card_url(card):
 
 
 # Read user's decklist
-st.write("# RuneTiera's Card Recommender")
+st.write("# RuneTiera Expedition Recommender")
+st.write("Discover the best cards to add to your deck, powered by MACHINE LEARNING!!!")
+# Twisted Fate banner image
+st.image(card_url('02BW026-full'), use_column_width=True)
 deck_url = st.text_input(
-    'Paste your decklist e.g. `https://runetiera.com/draft-viewer?run=JAbG8Neme`', 'https://runetiera.com/draft-viewer?run=JAbG8Neme')
+    'Paste a RuneTiera decklist e.g. `https://runetiera.com/draft-viewer?run=JAbG8Neme`', 'https://runetiera.com/draft-viewer?run=JAbG8Neme')
 
 # Extract the cards from the Firebase API
 cards = []
@@ -36,7 +39,6 @@ deck_id = deck_url.split('run=')[1]
 with urllib.request.urlopen(RUN_URL + deck_id) as url:
     response = json.loads(url.read().decode())
     cards = extract_cards(response)
-st.image(card_url(cards[0] + '-full'), use_column_width=True)
 
 # Print best cards as predicted by recommender
 data = format_surprise_data(runs, cards, 'new_id')
