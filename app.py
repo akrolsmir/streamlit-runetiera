@@ -3,6 +3,7 @@ import urllib.request
 import json
 
 from recommend import runs
+from recommend import build_algo
 from recommend import format_surprise_data
 from recommend import predict_best_cards
 
@@ -41,8 +42,9 @@ with urllib.request.urlopen(RUN_URL + deck_id) as url:
     cards = extract_cards(response)
 
 # Print best cards as predicted by recommender
-data = format_surprise_data(runs, cards, 'new_id')
-predictions = predict_best_cards(data, 'new_id')
+data = format_surprise_data(runs)
+algo = build_algo(data)
+predictions = predict_best_cards(algo, runs, 'new_id', cards)
 st.write("## Best cards to add")
 for (card, score) in predictions[0:5]:
     st.write(f'#### Score: {score:.1f}')

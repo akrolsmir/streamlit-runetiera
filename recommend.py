@@ -2,6 +2,7 @@ import json
 from collections import defaultdict
 import streamlit as st
 
+import random
 import pandas as pd
 import numpy as np
 
@@ -31,12 +32,14 @@ def processRuns():
     """Read from all users, and output just the runs."""
     runs = []
     users = loadJson('data/users.json')
-    for user in users[0:200]:
+    for user in users[0:500]:
         for run in user['runs']:
             # TODO: Filter by 3 or more wins?
             # if run['Wins'] >= 3:
             runs.append(run)
     writeJson('data/runs.json', runs)
+
+
 # processRuns()
 
 
@@ -97,10 +100,6 @@ def format_surprise_data(runs, new_deck=[], new_id='dummy'):
     reader = Reader(rating_scale=(0, 5))
     # The columns must correspond to user id, item id and ratings (in that order).
     return Dataset.load_from_df(df[['deck', 'card', 'count']], reader)
-
-
-runs = loadJson('data/runs.json')
-data = format_surprise_data(runs)
 
 
 def predict_with_knn(data):
@@ -173,22 +172,30 @@ def get_top_n(predictions, n=10):
     return top_n
 
 
-def predict_best_cards(data, new_id):
+@st.cache(suppress_st_warning=True)
+def build_algo(data):
+    # TODO: Serialize the algorithm so first run doesn't require recalculating
+    # the entire model https://surprise.readthedocs.io/en/stable/FAQ.html#how-to-serialize-an-algorithm
     trainset = data.build_full_trainset()
+    # KNN seems to return static values, weird.
     algo = SVD()
     algo.fit(trainset)
+    return algo
 
-    testset = trainset.build_anti_testset()
+
+def predict_best_cards(algo, runs, new_id, new_deck):
+    # This requires other cards in other decks (for anti_testset, anyways)...
+    # At least those other cards don't impact the prediction scores.
+    # TODO: Just use an empty array of all other cards in some bogus other deck.
+    deck_data = format_surprise_data(runs[0:20], new_deck, new_id)
+
+    # TODO: Predictions seem to be always the same values...
+    # Check that we're not just returning the means or sth
+    testset = deck_data.build_full_trainset().build_anti_testset(fill=0)
     predictions = algo.test(testset)
 
     top_n = get_top_n(predictions, n=10)
-
-    # Print the recommended items for each user
-    for uid, user_ratings in top_n.items():
-        # Basically assumes the best cards for the new deck
-        if uid == new_id:
-            print('##   Recommended: ', uid, user_ratings)
-            return user_ratings
+    return top_n[new_id]
 
 
 test_deck = [
@@ -230,5 +237,13 @@ test_deck = [
     "02IO009"
 ]
 
-data = format_surprise_data(runs, test_deck, 'new_id')
-predict_best_cards(data, 'new_id')
+# Fix seeds for reproducible models
+my_seed = 0
+random.seed(my_seed)
+np.random.seed(my_seed)
+
+runs = loadJson('data/runs.json')
+data = format_surprise_data(runs)
+algo = build_algo(data)
+predictions = predict_best_cards(algo, runs, 'new_id', test_deck)
+predictions
